@@ -2,11 +2,12 @@ import "@babylonjs/core/Debug/debugLayer";
 import "@babylonjs/inspector";
 import "@babylonjs/loaders/glTF";
 import "@babylonjs/loaders/OBJ";
-import { Engine, Scene, ArcRotateCamera, Vector3, HemisphericLight, Mesh, MeshBuilder, int, Material, StandardMaterial, Color3, AssetsManager } from "@babylonjs/core";
+import { Engine, Scene, ArcRotateCamera, Color4, ShaderMaterial, Vector2, Vector3, HemisphericLight, Mesh, MeshBuilder, int, Material, StandardMaterial, Color3, AssetsManager, AbstractMesh, PostProcess, BlackAndWhitePostProcess, BlurPostProcess, RenderTargetTexture, StencilOperation, StencilState, Camera, PassCubePostProcess, PassPostProcess, Effect, EndsWith } from '@babylonjs/core';
 
+import {createScene} from "./create_scene";
+import { getPickedObject } from "./pick_object";
+import { MaterialStencilState } from "@babylonjs/core/Materials/materialStencilState";
 
-const lightDir = new Vector3(1, 1, 0);
-const groundPosition = new Vector3(0, -1.0, 0);
 
 
 
@@ -18,6 +19,18 @@ const randMinusOneToOne = () => {
 };
 
 
+var pickedMesh : AbstractMesh | null = null;
+
+const customFragmentShader = `
+precision highp float;
+
+void main(void) {
+    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); // Red color
+}
+`;
+
+var need_outline = false;
+var mesh_to_outline : Mesh | null = null;
 
 var app = () => {
         // create the canvas html element and attach it to the webpage
@@ -27,73 +40,116 @@ var app = () => {
         canvas.id = "gameCanvas";
         document.body.appendChild(canvas);
 
-        
-
         // initialize babylon scene and engine
         var engine = new Engine(canvas, true);
         var scene = new Scene(engine);
-
-        var camera: ArcRotateCamera = new ArcRotateCamera("Camera", Math.PI / 2, Math.PI / 2 - 0.4, 10, Vector3.Zero(), scene);
-        camera.attachControl(canvas, true);
-        camera.lowerRadiusLimit = 3;
-        camera.upperRadiusLimit = 50;
-
-        var light1: HemisphericLight = new HemisphericLight("light1", lightDir, scene);
-        var sphere: Mesh = MeshBuilder.CreateSphere("sphere", { diameter: 2 }, scene);
-        var boxa: Mesh = MeshBuilder.CreateBox("box", {width : 2.0, height: 2.0, depth: 2.0}, scene);
-        var boxb: Mesh = MeshBuilder.CreateBox("box", {width : 1.8, height: 0.6, depth: 4.0}, scene);
-        var cyla : Mesh = MeshBuilder.CreateCylinder("cyl", {height: 4.0, diameter: 1.0});
-        boxa.position = new Vector3(0, 0, 3);
-        boxb.position = new Vector3(0, 1.0 - 0.25, 1.5);
-        cyla.position = new Vector3(-1.0, 2.0, 3.0);
-        var ground: Mesh = MeshBuilder.CreateGround("ground", {width: 10, height: 10, subdivisions: 2}, scene);
-        ground.position = groundPosition;
-
-        var mat_red = new StandardMaterial("mat_red", scene);
-        mat_red.diffuseColor = new Color3(1.0, 0.2, 0.3);
-        var mat_blue = new StandardMaterial("mat_blue", scene);
-        mat_blue.diffuseColor = new Color3(0.1, 0.1, 0.9);
-        var mat_violet = new StandardMaterial("mat_violet", scene);
-        mat_violet.diffuseColor = new Color3(0.4, 0.2, 0.9);
-        var mat_yellow = new StandardMaterial("mat_yellow", scene);
-        mat_yellow.diffuseColor = new Color3(0.7, 0.8, 0.0);
-        sphere.material = mat_red;
-        boxa.material = mat_blue;
-        boxb.material = mat_violet;
-        cyla.material = mat_yellow;
-
-        var assetManager : AssetsManager = new AssetsManager(scene);
-        var meshTask = assetManager.addMeshTask("obj_mesh_task", "", "./assets/", "monke.obj");
-        meshTask.onSuccess = (task) => {
-            let mesh = task.loadedMeshes[0];
-            mesh.position = new Vector3(0, 2.0, 0.3);
-            mesh.scaling = new Vector3(2.0, 2.0 , 2.0);
-            mesh.rotate(Vector3.Up(), Math.PI);
-            mesh.material = mat_yellow;
-        };
-        meshTask.onError = function (task, message, exception) {
-            console.log(message, exception);
-        };
-
-        assetManager.load();
+        //scene.autoClearDepthAndStencil = false;
 
 
+        var [camera, meshes, materials] = createScene(canvas, scene);
 
-        // hide/show the Inspector
-        window.addEventListener("keydown", (ev) => {
-            // Shift+Ctrl+Alt+I
-            if ( ev.ctrlKey && ev.altKey && ev.key === 'j') {
-                if (scene.debugLayer.isVisible()) {
-                    scene.debugLayer.hide();
-                } else {
-                    scene.debugLayer.show();
-                }
+        const shaderMaterial = new ShaderMaterial("shader", scene, "./WHITE", {
+            attributes: ["position", "normal", "uv"],
+            uniforms: ["world", "worldView", "worldViewProjection", "view", "projection"],
+          });
+            
+        canvas.addEventListener("pointerdown", (event) => {
+            pickedMesh = getPickedObject(scene, event.x, event.y);
+            if(pickedMesh != null) {
+                console.log(pickedMesh.name);
+                need_outline = true;
+                mesh_to_outline = pickedMesh as Mesh;
+            }
+            else
+            {
+                need_outline = false;
+                console.log("Nothing picked!");
             }
         });
+        
+        var outline_mat = new ShaderMaterial("outlineMat", scene, "./WHITE", {
+            attributes: ["position", "normal", "uv"],
+            uniforms: ["world", "worldView", "worldViewProjection", "view", "projection", "outlineColor"],
+        });
+
+
+        var prevClear = scene.clearColor;
+        var prevDepth = engine.getDepthFunction();
+        // RT 1
+        var rtta = new RenderTargetTexture("rtta", {
+            width: engine.getRenderWidth(),
+            height: engine.getRenderHeight(),
+        }, scene);
+        rtta.onBeforeRenderObservable.add(() => {
+            engine.setDepthFunction(Engine.ALWAYS);
+            scene.clearColor = new Color4(0, 0, 0, 1.0);
+        });
+        rtta.onAfterRenderObservable.add(() => {
+            engine.setDepthFunction(prevDepth);
+            scene.clearColor = prevClear;
+        });
+
+        var copy = new PassPostProcess("copy", 1.0, camera, 0, engine, true);
+        camera.detachPostProcess(copy);
+        copy.onApply = (effect) => {
+        };
+        var dilate = new PostProcess("dilate", "./DILATE", ["screenSize", "k"], ["prevTex"], 1.0, camera);
+        camera.detachPostProcess(dilate);
+
+        dilate.onApply = (effect) => {
+            effect.setTextureFromPostProcessOutput("prevTex", copy);
+            effect.setFloat("k", 4.0);
+            effect.setFloat2("screenSize", copy.width, copy.height);
+        };
+
+
+        var blur = new BlurPostProcess("blur", new Vector2(1, 1), 16, 1.0, camera, 0, engine, true);
+        camera.detachPostProcess(blur);
+        var diff = new PostProcess("diff", "./DIFF", ["screenSize"], ["prevTex"], 1.0, camera);
+        camera.detachPostProcess(diff);
+        diff.onApply = function (effect) {
+            effect.setTextureFromPostProcess("prevTex", dilate);
+            effect.setFloat2("screenSize", engine.getRenderWidth(), engine.getRenderHeight());
+        }; 
+
+
+        rtta.addPostProcess(copy);
+        rtta.addPostProcess(dilate);
+        rtta.addPostProcess(diff);
+
+
+        var compose = new PostProcess("compose", "./COMPOSE", ["screenSize", "outlineColor"], ["outlineMask"], 1.0, camera, 0, engine, true);
+        camera.detachPostProcess(compose);
+        compose.onApply = (effect) => {
+            effect.setTexture("outlineMask", rtta);
+            effect.setFloat2("screenSize", engine.getRenderWidth(), engine.getRenderHeight());
+            effect.setFloat3("outlineColor", 1.0, 0.0, 0.0);
+            effect.setBool("glow", true);
+        };
 
         // run the main render loop
         engine.runRenderLoop(() => {
-            scene.render();
+            if(need_outline) {
+                var prevMat = mesh_to_outline.material;
+                mesh_to_outline.material = outline_mat;
+
+                // RTTA
+                camera.customRenderTargets.push(rtta);
+                rtta.renderList.push(mesh_to_outline);
+                scene.render();
+                camera.customRenderTargets.pop();
+                rtta.renderList.pop();
+
+
+                camera.attachPostProcess(compose);
+                mesh_to_outline.material = prevMat;
+                scene.render();
+                camera.detachPostProcess(compose);
+            }
+            else
+            {
+                scene.render();
+            }
         });
 };
 

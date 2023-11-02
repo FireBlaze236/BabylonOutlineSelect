@@ -38,7 +38,8 @@ module.exports = {
         }),
         new CopyWebpackPlugin({
             patterns: [
-                {from:"src/assets", to: "assets"}
+                {from:"src/assets", to: "assets"},
+                {from:"src/shaders", to: "."},
             ]
         })
     ],
