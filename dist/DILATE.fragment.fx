@@ -17,10 +17,9 @@ void main(void)
         for(float j = -k; j <= k; j++) {
             vec2 idx = vec2(i, j) * texel;
             vec4 c = texture(textureSampler, vUV + idx);
-            col += c;
+            if(c.r > 0.0) {col = c; break;}
         }
     }
-    col /= k * k;
 
     gl_FragColor = col;
 }

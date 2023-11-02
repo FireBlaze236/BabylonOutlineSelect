@@ -16,7 +16,9 @@ void main(void)
     vec4 colMask = texture(outlineMask, vUV);
     colMask.a = 0.0;
     vec4 col = texture(textureSampler, vUV);
-    vec4 outlines = vec4(outlineColor.r,  outlineColor.g,  outlineColor.b, 1.0);
+    //if(!glow) col -= colMask;
+    col.a = 0.0;
+    vec4 outlines = vec4(colMask.r * outlineColor.r, colMask.g * outlineColor.g, colMask.b * outlineColor.b, 1.0);
 
-    gl_FragColor = col + (outlines) * colMask;
+    gl_FragColor = col + outlines;
 }

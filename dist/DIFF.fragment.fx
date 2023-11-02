@@ -11,6 +11,6 @@ uniform vec2 screenSize;
 void main(void)
 {
     vec4 col = texture(textureSampler, vUV) - texture(prevTex, vUV);
-    col.a = 1.0;
+    col.a = 0.0;
     gl_FragColor = col;
 }

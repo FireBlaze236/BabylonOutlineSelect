@@ -11,9 +11,12 @@
   "license": "ISC",
   "devDependencies": {
     "@babylonjs/core": "^6.27.1",
+    "@babylonjs/gui": "^6.28.0",
     "@babylonjs/inspector": "^6.27.1",
     "@babylonjs/loaders": "^6.27.1",
+    "@types/dat.gui": "^0.7.11",
     "copy-webpack-plugin": "^11.0.0",
+    "dat.gui": "^0.7.9",
     "html-webpack-plugin": "^5.5.3",
     "ts-loader": "^9.5.0",
     "typescript": "^5.2.2",
