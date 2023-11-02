@@ -6,6 +6,9 @@ import { Engine, Scene, ArcRotateCamera, Vector3, HemisphericLight, Mesh, MeshBu
 
 const groundPosition = new Vector3(0, -1.0, 0);
 const lightDir = new Vector3(1, 1, 0);
+const meshPath = "./assets/";
+const meshName = "monke.obj";
+
 
 const createScene = (canvas : HTMLCanvasElement, scene : Scene) : [Camera, Mesh[], Material[]] => {
     var camera: ArcRotateCamera = new ArcRotateCamera("Camera", -Math.PI / 2 + Math.PI / 4, Math.PI / 2 - 0.4, 10, Vector3.Zero(), scene);
@@ -23,6 +26,11 @@ const createScene = (canvas : HTMLCanvasElement, scene : Scene) : [Camera, Mesh[
     cyla.position = new Vector3(-1.0, 2.0, 3.0);
     var ground: Mesh = MeshBuilder.CreateGround("ground", {width: 10, height: 10, subdivisions: 2}, scene);
     ground.position = groundPosition;
+    // GROUND object is not pickable
+    ground.isPickable = false;
+    var groundMat = new StandardMaterial("green", scene);
+    groundMat.diffuseColor = new Color3(0.12, 0.8, 0.08);
+    ground.material = groundMat;
 
 
     var mat_red = new StandardMaterial("mat_red", scene);
@@ -47,7 +55,7 @@ const createScene = (canvas : HTMLCanvasElement, scene : Scene) : [Camera, Mesh[
 
 
     var assetManager : AssetsManager = new AssetsManager(scene);
-    var meshTask = assetManager.addMeshTask("obj_mesh_task", "", "./assets/", "monke.obj");
+    var meshTask = assetManager.addMeshTask("obj_mesh_task", "", meshPath, meshName);
 
     meshTask.onSuccess = (task) => {
         let mesh = task.loadedMeshes[0] as Mesh;
@@ -68,7 +76,7 @@ const createScene = (canvas : HTMLCanvasElement, scene : Scene) : [Camera, Mesh[
 
     // hide/show the Inspector
     window.addEventListener("keydown", (ev) => {
-        // Shift+Ctrl+Alt+I
+        // Ctrl + Alt + j for inspector
         if ( ev.ctrlKey && ev.altKey && ev.key === 'j') {
             if (scene.debugLayer.isVisible()) {
                 scene.debugLayer.hide();

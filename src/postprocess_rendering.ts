@@ -24,6 +24,7 @@ const get_render_target = (scene, engine, camera) => {
 }
 
 const get_mask_material = (scene) => {
+    // A simple one color material
     var mask_mat = new ShaderMaterial("outlineMat", scene, "./WHITE", {
         attributes: ["position", "normal", "uv"],
         uniforms: ["world", "worldView", "worldViewProjection", "view", "projection", "outlineColor"],
@@ -33,10 +34,13 @@ const get_mask_material = (scene) => {
 }
 
 const get_postprocess_stack = (camera, engine, rtta) => {
+    // Copy to buffer
     var copy = new PassPostProcess("copy", 1.0, camera, 0, engine, true);
     camera.detachPostProcess(copy);
     copy.onApply = (effect) => {
     };
+
+    // Dilation operation
     var dilate = new PostProcess("dilate", "./DILATE", ["screenSize", "k"], ["prevTex"], 1.0, camera);
     camera.detachPostProcess(dilate);
 
@@ -46,14 +50,14 @@ const get_postprocess_stack = (camera, engine, rtta) => {
         effect.setFloat2("screenSize", copy.width, copy.height);
     };
 
+    // Blurring of the dilation edges
     var blur = new BlurPostProcess("blur2x2", new Vector2(1, 1), 8, {
         width : engine.getRenderWidth(),
         height: engine.getRenderHeight()
     }, camera, 0, engine, true);
     camera.detachPostProcess(blur);
 
-
-
+    // Difference of output from the actual object mask
     var diff = new PostProcess("diff", "./DIFF", ["screenSize"], ["prevTex"], 1.0, camera);
     camera.detachPostProcess(diff);
     diff.onApply = function (effect) {
@@ -61,7 +65,7 @@ const get_postprocess_stack = (camera, engine, rtta) => {
         effect.setFloat2("screenSize", engine.getRenderWidth(), engine.getRenderHeight());
     }; 
 
-
+    // Composer to combine the masked outline with final output
     var compose = new PostProcess("compose", "./COMPOSE", ["screenSize", "outlineColor"], ["outlineMask"], 1.0, camera, 0, engine, true);
     camera.detachPostProcess(compose);
     compose.onApply = (effect) => {

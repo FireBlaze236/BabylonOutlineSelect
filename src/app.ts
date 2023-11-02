@@ -9,9 +9,7 @@ import { getPickedObject } from "./pick_object";
 import {createUI, outline_color, outline_smoothing, outline_width} from "./create_ui";
 import {get_postprocess_stack, get_render_target, get_mask_material} from "./postprocess_rendering";
 
-const randMinusOneToOne = () => {
-    return  2.0 * Math.random() - 1.0;
-};
+
 
 var pickedMesh : AbstractMesh | null = null;
 var need_outline = false;
@@ -20,6 +18,10 @@ var mesh_to_outline : Mesh | null = null;
 
 
 var app = () => {
+        if(!Engine.isSupported()) {
+            window.alert("Sorry! your browser does not support babylon!");
+            return;
+        }
         // create the canvas html element and attach it to the webpage
         var canvas = document.createElement("canvas");
         canvas.style.width = "100%";
@@ -30,15 +32,12 @@ var app = () => {
         // initialize babylon scene and engine
         var engine = new Engine(canvas, true);
         var scene = new Scene(engine);
-
-
-
         var [camera, meshes, materials] = createScene(canvas, scene);
 
- 
+        // Create UI
         createUI(scene, engine);
 
-            
+        // Add listener to pick mesh
         canvas.addEventListener("pointermove", (event) => {
             pickedMesh = getPickedObject(scene, event.x, event.y);
             if(pickedMesh != null) {
