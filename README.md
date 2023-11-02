@@ -4,6 +4,9 @@ Assignment for Babylon JS
 # Requirements
 * [Git](https://git-scm.com/)
 * [NodeJS](https://nodejs.org/)
+
+# Dependencies
+* [BabylonJS](https://www.babylonjs.com/)
 # Run instructions
 
 ```sh
