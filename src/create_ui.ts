@@ -15,7 +15,7 @@ const add_slider = (label : string, label_text : string, uiWidth) : [Slider, Tex
     return [slider, sliderLabel];
 };
 
-var outline_color : Color3 = new Color3(1.0, 0.0, 0.0);
+var outline_color : Color3 = new Color3(1.0, 1.0, 1.0);
 var outline_width : number = 1.0;
 var outline_smoothing : boolean = false;
 const uiWidth = 200;

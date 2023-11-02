@@ -8,7 +8,7 @@ const groundPosition = new Vector3(0, -1.0, 0);
 const lightDir = new Vector3(1, 1, 0);
 
 const createScene = (canvas : HTMLCanvasElement, scene : Scene) : [Camera, Mesh[], Material[]] => {
-    var camera: ArcRotateCamera = new ArcRotateCamera("Camera", Math.PI / 2, Math.PI / 2 - 0.4, 10, Vector3.Zero(), scene);
+    var camera: ArcRotateCamera = new ArcRotateCamera("Camera", -Math.PI / 2 + Math.PI / 4, Math.PI / 2 - 0.4, 10, Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
     camera.lowerRadiusLimit = 3;
     camera.upperRadiusLimit = 50;
